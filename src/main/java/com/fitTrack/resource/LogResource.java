@@ -20,14 +20,9 @@ public class LogResource {
     @Inject
     LogRepository logRepository;
 
-    @Inject
-    JsonWebToken jwt;
-
     @POST
     @Path("/createLog")
-    @RolesAllowed("**")
     public Response saveLog(FitLog log) {
-        log.setUserId(jwt.getSubject());
         logRepository.saveLog(LogMapper.toMap(log));
         return Response.ok("{\"message\": \"Log saved successfully!\"}").build();
     }
@@ -35,7 +30,6 @@ public class LogResource {
     // GET /logs/{userId}/{date} — gets log for specific date
     @GET
     @Path("/{userId}/{date}")
-    @RolesAllowed("**")
     public Response getLog(@PathParam("userId") String userId, @PathParam("date") String date) {
         var item = logRepository.getLog(userId, date);
         if (item == null || item.isEmpty()) {
@@ -47,7 +41,6 @@ public class LogResource {
     // GET /logs/{userId} — gets all logs for a user
     @GET
     @Path("/{userId}")
-    @RolesAllowed("**")
     public Response getLogs(@PathParam("userId") String userId) {
         var items = logRepository.getLogs(userId);
         var logs = items.stream().map(LogMapper::toLog).collect(Collectors.toList());
@@ -56,7 +49,7 @@ public class LogResource {
 
     @PUT
     @Path("/update/{userId}/{date}")
-    @RolesAllowed("**")
+    
     public Response updateLog(@PathParam("userId") String userId, @PathParam("date") String date, FitLog log) {
         var existing = logRepository.getLog(userId, date);
         if (existing == null || existing.isEmpty()) {

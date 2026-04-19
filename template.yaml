@@ -156,6 +156,20 @@ Resources:
       RouteKey: 'PUT /logs/update/{userId}/{date}'
       Target: !Sub integrations/${LambdaIntegration}
 
+  PlansCreateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /plans/createPlan'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  UsersCreateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /users/create'
+      Target: !Sub integrations/${LambdaIntegration}
+
   HealthRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -167,7 +181,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref ApiGateway
-      StageName: !Ref Environment
+      StageName: $default
       AutoDeploy: true
 
   LambdaPermission:

@@ -28,16 +28,11 @@ public class PlanResource {
     @Inject
     ClaudeService claudeService;
 
-    @Inject
-    JsonWebToken jwt;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @POST
     @Path("/generate")
-    @RolesAllowed("**")
     public Response generatePlan(OnboardingRequest request) {
-        request.setUserId(jwt.getSubject());
         try {
             // Build user profile string to send to Claude
             String userProfile = """
@@ -100,9 +95,7 @@ public class PlanResource {
 
     @POST
     @Path("/createPlan")
-    @RolesAllowed("**")
     public Response savePlan(FitPlan plan) {
-        plan.setUserId(jwt.getSubject());
         plan.setPlanId(UUID.randomUUID().toString());
         plan.setCreatedAt(Instant.now().toString());
         planRepository.savePlan(PlanMapper.toMap(plan));
@@ -111,7 +104,6 @@ public class PlanResource {
 
     @GET
     @Path("/{userId}")
-    @RolesAllowed("**")
     public Response getPlan(@PathParam("userId") String userId) {
         var item = planRepository.getPlan(userId);
         if (item == null || item.isEmpty()) {

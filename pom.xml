@@ -40,10 +40,6 @@
       <artifactId>quarkus-amazon-lambda-http</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-smallrye-jwt</artifactId>
-    </dependency>
-    <dependency>
       <groupId>io.quarkiverse.amazonservices</groupId>
       <artifactId>quarkus-amazon-dynamodb</artifactId>
     </dependency>
