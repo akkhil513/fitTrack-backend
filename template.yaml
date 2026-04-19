@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: FitTrack Backend Template
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub fittrack-lambda-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-users
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-plans
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-logs
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-logs/index/*
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  FitTrackLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub fittrack-backend-lambda-${Environment}
+      Runtime: java17
+      Handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Code:
+        S3Bucket: fittrack-deployments
+        S3Key: backend/function.zip
+      Environment:
+        Variables:
+          COGNITO_USER_POOL_ID: us-east-1_FiMxzIAMO
+          ANTHROPIC_API_KEY: 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
+          ENVIRONMENT: !Ref Environment
+
+  ApiGateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub fittrack-api-${Environment}
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - '*'
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiGateway
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt FitTrackLambda.Arn
+      PayloadFormatVersion: '2.0'
+
+  UsersPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /users'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  UsersGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /users/{userId}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  UsersUpdateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'PUT /users/update/{userId}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PlansGenerateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /plans/generate'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PlansGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /plans/{userId}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  LogsCreateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /logs/createLog'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  LogsGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /logs/{userId}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  LogsGetByDateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /logs/{userId}/{date}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  LogsUpdateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'PUT /logs/update/{userId}/{date}'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  HealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /health'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ApiGateway
+      StageName: !Ref Environment
+      AutoDeploy: true
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FitTrackLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
