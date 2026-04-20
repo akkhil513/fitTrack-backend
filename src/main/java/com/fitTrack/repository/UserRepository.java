@@ -4,10 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.util.Map;
 
@@ -35,15 +32,38 @@ public class UserRepository {
                 .build()).item();
     }
 
-    public void updateUser(String userId, String firstName, String lastName) {
+    public void updateUser(String userId, String firstName, String lastName, String startDate) {
         dynamoDB.updateItem(UpdateItemRequest.builder()
                 .tableName(TABLE)
                 .key(Map.of("userId", AttributeValue.fromS(userId)))
-                .updateExpression("SET firstName = :fn, lastName =:ln")
+                .updateExpression("SET firstName = :fn, lastName = :ln, startDate = :sd")
                 .expressionAttributeValues(Map.of(
-                        ":fn", AttributeValue.fromS(firstName),
-                        ":ln", AttributeValue.fromS(lastName)
+                        ":fn", AttributeValue.fromS(firstName != null ? firstName : " "),
+                        ":ln", AttributeValue.fromS(lastName != null ? lastName : " "),
+                        ":sd", AttributeValue.fromS(startDate != null ? startDate : " ")
                 )).build());
+    }
 
+    public boolean isUsernameTaken(String username) {
+        var result = dynamoDB.query(QueryRequest.builder()
+                .tableName(TABLE)
+                .indexName("username-index")
+                .keyConditionExpression("username = :u")
+                .expressionAttributeValues(Map.of(
+                        ":u", AttributeValue.fromS(username)
+                ))
+                .build());
+        return !result.items().isEmpty();
+    }
+
+    public void updateMeasurements(String userId, String measurements) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of("userId", AttributeValue.fromS(userId)))
+                .updateExpression("SET measurements = :m")
+                .expressionAttributeValues(Map.of(
+                        ":m", AttributeValue.fromS(measurements != null ? measurements : " ")
+                ))
+                .build());
     }
 }

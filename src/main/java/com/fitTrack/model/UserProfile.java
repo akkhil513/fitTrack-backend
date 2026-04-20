@@ -11,4 +11,6 @@ public class UserProfile {
     public String email;
     public String startDate;
     public boolean isPublic;
+    private String username;
+    private String measurements;
 }

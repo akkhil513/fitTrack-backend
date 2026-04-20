@@ -2,6 +2,8 @@ package com.fitTrack.model;
 
 import lombok.Data;
 
+import java.util.Map;
+
 @Data
 public class FitLog {
     private String userId;
@@ -14,4 +16,6 @@ public class FitLog {
     private String water;
     private String sleep;
     private String notes;
+    private Map<String, String> workout;
+    private Map<String, String> nutrition;
 }

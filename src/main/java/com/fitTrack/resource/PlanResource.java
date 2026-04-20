@@ -7,12 +7,10 @@ import com.fitTrack.model.FitPlan;
 import com.fitTrack.model.OnboardingRequest;
 import com.fitTrack.repository.PlanRepository;
 import com.fitTrack.service.ClaudeService;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import java.time.Instant;
 import java.util.UUID;

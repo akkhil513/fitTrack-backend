@@ -46,8 +46,8 @@ public class ClaudeService {
     private String getRequestString(String userProfile) throws JsonProcessingException {
         Map<String, Object> requestBody = Map.of(
                 "model", model,
-                "max_tokens", 2048,
-                "system", "You are an elite fitness coach with 15+ years experience specializing in body recomposition, hypertrophy, and sports nutrition. You must respond with ONLY a JSON object. No markdown, no backticks, no explanation, no extra text before or after. The JSON must have exactly these 5 keys: strategy, training, nutrition, supplements, recovery. Each value must be a single detailed string under 300 characters. Base your response on the user profile provided.",
+                "max_tokens", 4096,
+                "system", "You are an elite fitness coach with 15+ years experience. You must respond with ONLY a JSON object. No markdown, no backticks. Use exactly these 5 keys: strategy, training, nutrition, supplements, recovery. For training, return a JSON object with days as keys (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) and each day having session string and exercises array with objects containing name, sets, reps, rest. Keep strategy, nutrition, supplements, recovery as strings under 300 chars.",
                 "messages", new Object[]{
                         Map.of("role", "user", "content", userProfile)
                 }

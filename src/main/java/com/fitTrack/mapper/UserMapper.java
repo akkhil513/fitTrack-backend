@@ -13,6 +13,8 @@ public class UserMapper {
         user.setLastName(item.get("lastName").s());
         user.setEmail(item.get("email").s());
         user.setStartDate(item.get("startDate").s());
+        user.setUsername(item.getOrDefault("username", AttributeValue.fromS("")).s());
+        user.setMeasurements(item.getOrDefault("measurements", AttributeValue.fromS(" ")).s());
         return user;
     }
 
@@ -20,9 +22,11 @@ public class UserMapper {
         return Map.of(
                 "userId",    AttributeValue.fromS(user.getUserId()),
                 "firstName", AttributeValue.fromS(user.getFirstName()),
-                "lastName", AttributeValue.fromS(user.getLastName()),
+                "lastName",  AttributeValue.fromS(user.getLastName()),
                 "email",     AttributeValue.fromS(user.getEmail()),
-                "startDate", AttributeValue.fromS(java.time.LocalDate.now().toString())
+                "startDate", AttributeValue.fromS(java.time.LocalDate.now().toString()),
+                "username",  AttributeValue.fromS(user.getUsername() != null && !user.getUsername().isEmpty() ? user.getUsername() : " "),
+                "measurements", AttributeValue.fromS(user.getMeasurements() != null ? user.getMeasurements() : " ")
         );
     }
 }

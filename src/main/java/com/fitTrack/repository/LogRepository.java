@@ -46,7 +46,7 @@ public class LogRepository {
                 .build()).items();
     }
 
-    public void updateLog(String userId, String date, Map<String, AttributeValue> item) {
+    public void updateLog(String userId, String date, Map<String, AttributeValue> values) {
         dynamoDB.updateItem(UpdateItemRequest.builder()
                 .tableName(TABLE)
                 .key(Map.of(
@@ -55,15 +55,7 @@ public class LogRepository {
                 ))
                 .updateExpression("SET #s = :s, exercises = :e, protein = :p, calories = :c, water = :w, sleep = :sl, notes = :n")
                 .expressionAttributeNames(Map.of("#s", "session"))
-                .expressionAttributeValues(Map.of(
-                        ":s",  AttributeValue.fromS(item.get("session").s()),
-                        ":e",  AttributeValue.fromS(item.get("exercises").s()),
-                        ":p",  AttributeValue.fromS(item.get("protein").s()),
-                        ":c",  AttributeValue.fromS(item.get("calories").s()),
-                        ":w",  AttributeValue.fromS(item.get("water").s()),
-                        ":sl", AttributeValue.fromS(item.get("sleep").s()),
-                        ":n",  AttributeValue.fromS(item.get("notes").s())
-                ))
+                .expressionAttributeValues(values)
                 .build());
     }
 }

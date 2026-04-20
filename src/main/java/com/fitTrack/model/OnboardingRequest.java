@@ -13,7 +13,7 @@ public class OnboardingRequest {
     private String height;
     private String weight;
     private String physique;
-    private String fatStorage;
+    private List<String> fatStorage;
     private String primaryGoal;
     private List<String> laggingMuscles;
     private String trainingLevel;

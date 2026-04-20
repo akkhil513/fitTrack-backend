@@ -3,23 +3,28 @@ package com.fitTrack.mapper;
 import com.fitTrack.model.FitLog;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class LogMapper {
 
     public static Map<String, AttributeValue> toMap(FitLog log) {
-        return Map.of(
-                "userId",    AttributeValue.fromS(log.getUserId()),
-                "date",      AttributeValue.fromS(log.getDate()),
-                "dayNumber", AttributeValue.fromN(String.valueOf(log.getDayNumber())),
-                "session",   AttributeValue.fromS(log.getSession()),
-                "exercises", AttributeValue.fromS(log.getExercises()),
-                "protein",   AttributeValue.fromS(log.getProtein()),
-                "calories",  AttributeValue.fromS(log.getCalories()),
-                "water",     AttributeValue.fromS(log.getWater()),
-                "sleep",     AttributeValue.fromS(log.getSleep()),
-                "notes",     AttributeValue.fromS(log.getNotes())
-        );
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("userId",    AttributeValue.fromS(log.getUserId()));
+        item.put("date",      AttributeValue.fromS(log.getDate()));
+        item.put("dayNumber", AttributeValue.fromN(String.valueOf(log.getDayNumber())));
+        item.put("session",   AttributeValue.fromS(nullSafe(log.getSession())));
+        item.put("exercises", AttributeValue.fromS(nullSafe(log.getExercises())));
+        item.put("protein",   AttributeValue.fromS(nullSafe(log.getProtein())));
+        item.put("calories",  AttributeValue.fromS(nullSafe(log.getCalories())));
+        item.put("water",     AttributeValue.fromS(nullSafe(log.getWater())));
+        item.put("sleep",     AttributeValue.fromS(nullSafe(log.getSleep())));
+        item.put("notes",     AttributeValue.fromS(nullSafe(log.getNotes())));
+        return item;
+    }
+
+    private static String nullSafe(String value) {
+        return (value == null || value.isEmpty()) ? " " : value;
     }
 
     public static FitLog toLog(Map<String, AttributeValue> item) {
