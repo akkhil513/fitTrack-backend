@@ -20,6 +20,7 @@ public class LogMapper {
         item.put("water",     AttributeValue.fromS(nullSafe(log.getWater())));
         item.put("sleep",     AttributeValue.fromS(nullSafe(log.getSleep())));
         item.put("notes",     AttributeValue.fromS(nullSafe(log.getNotes())));
+        item.put("checklist",  AttributeValue.fromS(nullSafe(log.getChecklistJson())));
         return item;
     }
 
@@ -39,6 +40,7 @@ public class LogMapper {
         log.setWater(item.get("water").s());
         log.setSleep(item.get("sleep").s());
         log.setNotes(item.get("notes").s());
+        log.setChecklistJson(item.getOrDefault("checklist", AttributeValue.fromS(" ")).s());
         return log;
     }
 }

@@ -66,4 +66,15 @@ public class UserRepository {
                 ))
                 .build());
     }
+
+    public void updateMealTemplates(String userId, String mealTemplates) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of("userId", AttributeValue.fromS(userId)))
+                .updateExpression("SET mealTemplates = :m")
+                .expressionAttributeValues(Map.of(
+                        ":m", AttributeValue.fromS(mealTemplates != null ? mealTemplates : " ")
+                ))
+                .build());
+    }
 }

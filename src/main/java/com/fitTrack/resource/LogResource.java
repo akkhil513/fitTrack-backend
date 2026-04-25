@@ -1,14 +1,13 @@
 package com.fitTrack.resource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fitTrack.mapper.LogMapper;
 import com.fitTrack.model.FitLog;
 import com.fitTrack.repository.LogRepository;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.Map;
@@ -25,6 +24,20 @@ public class LogResource {
     @POST
     @Path("/createLog")
     public Response saveLog(FitLog log) {
+        extractNestedFields(log);
+
+        var existing = logRepository.getLog(log.getUserId(), log.getDate());
+
+        if (existing != null && !existing.isEmpty()) {
+            logRepository.updateLog(log.getUserId(), log.getDate(), buildUpdateMap(log, existing));
+        } else {
+            logRepository.saveLog(LogMapper.toMap(log));
+        }
+
+        return Response.ok("{\"message\": \"Log saved successfully!\"}").build();
+    }
+
+    private void extractNestedFields(FitLog log) {
         if (log.getWorkout() != null) {
             log.setSession(log.getWorkout().getOrDefault("session", ""));
             log.setExercises(log.getWorkout().getOrDefault("exercises", ""));
@@ -36,49 +49,36 @@ public class LogResource {
             log.setWater(log.getNutrition().getOrDefault("water", ""));
             log.setSleep(log.getNutrition().getOrDefault("sleep", ""));
         }
-
-        // Check if log exists for this date
-        var existing = logRepository.getLog(log.getUserId(), log.getDate());
-
-        if (existing != null && !existing.isEmpty()) {
-            // Merge with existing — don't overwrite non-empty fields
-            String session = log.getSession() != null && !log.getSession().isBlank()
-                    ? log.getSession()
-                    : existing.getOrDefault("session", AttributeValue.fromS(" ")).s();
-            String exercises = log.getExercises() != null && !log.getExercises().isBlank()
-                    ? log.getExercises()
-                    : existing.getOrDefault("exercises", AttributeValue.fromS(" ")).s();
-            String protein = log.getProtein() != null && !log.getProtein().isBlank()
-                    ? log.getProtein()
-                    : existing.getOrDefault("protein", AttributeValue.fromS(" ")).s();
-            String calories = log.getCalories() != null && !log.getCalories().isBlank()
-                    ? log.getCalories()
-                    : existing.getOrDefault("calories", AttributeValue.fromS(" ")).s();
-            String water = log.getWater() != null && !log.getWater().isBlank()
-                    ? log.getWater()
-                    : existing.getOrDefault("water", AttributeValue.fromS(" ")).s();
-            String sleep = log.getSleep() != null && !log.getSleep().isBlank()
-                    ? log.getSleep()
-                    : existing.getOrDefault("sleep", AttributeValue.fromS(" ")).s();
-            String notes = log.getNotes() != null && !log.getNotes().isBlank()
-                    ? log.getNotes()
-                    : existing.getOrDefault("notes", AttributeValue.fromS(" ")).s();
-
-            logRepository.updateLog(log.getUserId(), log.getDate(), Map.of(
-                    ":s",  AttributeValue.fromS(session),
-                    ":e",  AttributeValue.fromS(exercises),
-                    ":p",  AttributeValue.fromS(protein),
-                    ":c",  AttributeValue.fromS(calories),
-                    ":w",  AttributeValue.fromS(water),
-                    ":sl", AttributeValue.fromS(sleep),
-                    ":n",  AttributeValue.fromS(notes)
-            ));
-        } else {
-            logRepository.saveLog(LogMapper.toMap(log));
+        if (log.getChecklist() != null) {
+            try {
+                log.setChecklistJson(new ObjectMapper().writeValueAsString(log.getChecklist()));
+            } catch (Exception e) {
+                log.setChecklistJson(" ");
+            }
         }
-
-        return Response.ok("{\"message\": \"Log saved successfully!\"}").build();
     }
+
+    private Map<String, AttributeValue> buildUpdateMap(FitLog log, Map<String, AttributeValue> existing) {
+        return Map.of(
+                ":s",  value(log.getSession(), existing, "session"),
+                ":e",  value(log.getExercises(), existing, "exercises"),
+                ":p",  value(log.getProtein(), existing, "protein"),
+                ":c",  value(log.getCalories(), existing, "calories"),
+                ":w",  value(log.getWater(), existing, "water"),
+                ":sl", value(log.getSleep(), existing, "sleep"),
+                ":n",  value(log.getNotes(), existing, "notes"),
+                ":cl", value(log.getChecklistJson(), existing, "checklist")
+        );
+    }
+
+    private AttributeValue value(String newVal, Map<String, AttributeValue> existing, String key) {
+        return AttributeValue.fromS(
+                newVal != null && !newVal.isBlank()
+                        ? newVal
+                        : existing.getOrDefault(key, AttributeValue.fromS(" ")).s()
+        );
+    }
+
     // GET /logs/{userId}/{date} — gets log for specific date
     @GET
     @Path("/{userId}/{date}")

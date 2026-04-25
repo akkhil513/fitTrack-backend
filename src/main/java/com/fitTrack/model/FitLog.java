@@ -18,4 +18,6 @@ public class FitLog {
     private String notes;
     private Map<String, String> workout;
     private Map<String, String> nutrition;
+    private Map<String, String> checklist;
+    private String checklistJson;
 }

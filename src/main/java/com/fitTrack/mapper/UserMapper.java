@@ -26,7 +26,8 @@ public class UserMapper {
                 "email",     AttributeValue.fromS(user.getEmail()),
                 "startDate", AttributeValue.fromS(java.time.LocalDate.now().toString()),
                 "username",  AttributeValue.fromS(user.getUsername() != null && !user.getUsername().isEmpty() ? user.getUsername() : " "),
-                "measurements", AttributeValue.fromS(user.getMeasurements() != null ? user.getMeasurements() : " ")
+                "measurements",  AttributeValue.fromS(user.getMeasurements() != null ? user.getMeasurements() : " "),
+                "mealTemplates", AttributeValue.fromS(user.getMealTemplates() != null ? user.getMealTemplates() : " ")
         );
     }
 }

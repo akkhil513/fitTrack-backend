@@ -14,11 +14,10 @@ import java.util.Map;
 @ApplicationScoped
 public class ClaudeService {
 
-    @ConfigProperty(name = "fittrack.claude.api-key")
-    String apiKey;
-
     @ConfigProperty(name = "fittrack.claude.model")
     String model;
+
+    private final String apiKey = System.getenv("ANTHROPIC_API_KEY");
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -55,5 +54,54 @@ public class ClaudeService {
 
         ObjectMapper mapper = new ObjectMapper();
         return mapper.writeValueAsString(requestBody);
+    }
+
+    private String callClaude(String requestBody) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.anthropic.com/v1/messages"))
+                    .header("Content-Type", "application/json")
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", "2023-06-01")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Claude API error: " + response.statusCode() + " " + response.body());
+            }
+            return response.body();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to call Claude API: " + e.getClass().getName() + ": " + e.getMessage(), e);
+        }
+    }
+
+    public String calculateMealMacros(String mealDescription) throws Exception {
+        Map<String, Object> requestBody = Map.of(
+                "model", model,
+                "max_tokens", 500,
+                "system", "You are a nutrition expert. Analyze the meal and return ONLY a JSON object with: protein (number), calories (number), carbs (number), fat (number), breakdown (array of {name, protein, calories, carbs, fat}). No markdown, no explanation, just JSON.",
+                "messages", new Object[]{
+                        Map.of("role", "user", "content", "Calculate macros for: " + mealDescription)
+                }
+        );
+
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonBody = mapper.writeValueAsString(requestBody);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.anthropic.com/v1/messages"))
+                .header("Content-Type", "application/json")
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", "2023-06-01")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Claude API error: " + response.statusCode() + " " + response.body());
+        }
+
+        return response.body();
     }
 }

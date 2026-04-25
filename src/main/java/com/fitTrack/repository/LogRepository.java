@@ -53,7 +53,7 @@ public class LogRepository {
                         "userId", AttributeValue.fromS(userId),
                         "date",   AttributeValue.fromS(date)
                 ))
-                .updateExpression("SET #s = :s, exercises = :e, protein = :p, calories = :c, water = :w, sleep = :sl, notes = :n")
+                .updateExpression("SET #s = :s, exercises = :e, protein = :p, calories = :c, water = :w, sleep = :sl, notes = :n, checklist = :cl")
                 .expressionAttributeNames(Map.of("#s", "session"))
                 .expressionAttributeValues(values)
                 .build());

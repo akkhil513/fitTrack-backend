@@ -13,4 +13,5 @@ public class UserProfile {
     public boolean isPublic;
     private String username;
     private String measurements;
+    private String mealTemplates;
 }
