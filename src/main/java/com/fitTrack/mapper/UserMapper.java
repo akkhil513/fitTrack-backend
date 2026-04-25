@@ -13,6 +13,7 @@ public class UserMapper {
         user.setLastName(item.get("lastName").s());
         user.setEmail(item.get("email").s());
         user.setStartDate(item.get("startDate").s());
+        user.setUsername(item.getOrDefault("username", AttributeValue.fromS("")).s());
         user.setMeasurements(item.getOrDefault("measurements", AttributeValue.fromS(" ")).s());
         user.setMeasurementHistory(item.getOrDefault("measurementHistory", AttributeValue.fromS(" ")).s());
         user.setMealTemplates(item.getOrDefault("mealTemplates", AttributeValue.fromS(" ")).s());
