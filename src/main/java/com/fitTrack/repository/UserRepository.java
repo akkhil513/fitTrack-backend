@@ -56,15 +56,15 @@ public class UserRepository {
         return !result.items().isEmpty();
     }
 
-    public void updateMeasurements(String userId, String measurements) {
+    public void updateMeasurements(String userId, String measurements, String measurementHistory) {
         dynamoDB.updateItem(UpdateItemRequest.builder()
                 .tableName(TABLE)
                 .key(Map.of("userId", AttributeValue.fromS(userId)))
-                .updateExpression("SET measurements = :m")
+                .updateExpression("SET measurements = :m, measurementHistory = :h")
                 .expressionAttributeValues(Map.of(
-                        ":m", AttributeValue.fromS(measurements != null ? measurements : " ")
-                ))
-                .build());
+                        ":m", AttributeValue.fromS(measurements),
+                        ":h", AttributeValue.fromS(measurementHistory)
+                )).build());
     }
 
     public void updateMealTemplates(String userId, String mealTemplates) {

@@ -64,7 +64,7 @@ public class UserResource {
         if (existing == null || existing.isEmpty()) {
             return Response.status(404).build();
         }
-        userRepository.updateMeasurements(userId, user.getMeasurements());
+        userRepository.updateMeasurements(userId, user.getMeasurements(), user.getMeasurementHistory() != null ? user.getMeasurementHistory() : " ");
         return Response.ok("{\"message\": \"Measurements saved!\"}").build();
     }
 }

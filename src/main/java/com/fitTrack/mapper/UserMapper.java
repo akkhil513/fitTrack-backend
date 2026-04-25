@@ -13,8 +13,9 @@ public class UserMapper {
         user.setLastName(item.get("lastName").s());
         user.setEmail(item.get("email").s());
         user.setStartDate(item.get("startDate").s());
-        user.setUsername(item.getOrDefault("username", AttributeValue.fromS("")).s());
         user.setMeasurements(item.getOrDefault("measurements", AttributeValue.fromS(" ")).s());
+        user.setMeasurementHistory(item.getOrDefault("measurementHistory", AttributeValue.fromS(" ")).s());
+        user.setMealTemplates(item.getOrDefault("mealTemplates", AttributeValue.fromS(" ")).s());
         return user;
     }
 
@@ -26,8 +27,9 @@ public class UserMapper {
                 "email",     AttributeValue.fromS(user.getEmail()),
                 "startDate", AttributeValue.fromS(java.time.LocalDate.now().toString()),
                 "username",  AttributeValue.fromS(user.getUsername() != null && !user.getUsername().isEmpty() ? user.getUsername() : " "),
-                "measurements",  AttributeValue.fromS(user.getMeasurements() != null ? user.getMeasurements() : " "),
-                "mealTemplates", AttributeValue.fromS(user.getMealTemplates() != null ? user.getMealTemplates() : " ")
+                "measurements",       AttributeValue.fromS(user.getMeasurements() != null ? user.getMeasurements() : " "),
+                "measurementHistory", AttributeValue.fromS(user.getMeasurementHistory() != null ? user.getMeasurementHistory() : " "),
+                "mealTemplates",      AttributeValue.fromS(user.getMealTemplates() != null ? user.getMealTemplates() : " ")
         );
     }
 }
