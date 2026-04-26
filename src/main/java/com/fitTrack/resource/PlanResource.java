@@ -31,64 +31,74 @@ public class PlanResource {
     @POST
     @Path("/generate")
     public Response generatePlan(OnboardingRequest request) {
-        try {
-            // Build user profile string to send to Claude
-            String userProfile = """
-                    Age: %s, Gender: %s, Height: %s, Weight: %s,
-                    Physique: %s, Fat storage: %s, Goal: %s,
-                    Training level: %s, Gym: %s, Days/week: %s,
-                    Session duration: %s, Diet: %s, Food preference: %s,
-                    Appetite: %s, Supplements: %s, Injuries: %s,
-                    Sleep: %s, Stress: %s, Coaching style: %s,
-                    Bulk approach: %s, Visual goals: %s
-                    """.formatted(
-                    request.getAge(), request.getGender(), request.getHeight(),
-                    request.getWeight(), request.getPhysique(), request.getFatStorage(),
-                    request.getPrimaryGoal(), request.getTrainingLevel(), request.getGymAccess(),
-                    request.getDaysPerWeek(), request.getSessionDuration(), request.getDietType(),
-                    request.getFoodPreference(), request.getAppetite(), request.getSupplements(),
-                    request.getInjuries(), request.getSleepHours(), request.getStressLevel(),
-                    request.getCoachingStyle(), request.getBulkApproach(), request.getVisualGoals()
-            );
+        // 1. Save GENERATING status immediately
+        FitPlan plan = new FitPlan();
+        plan.setUserId(request.getUserId());
+        plan.setPlanId(UUID.randomUUID().toString());
+        plan.setCreatedAt(Instant.now().toString());
+        plan.setStatus("GENERATING");
+        plan.setStrategy(" ");
+        plan.setTraining(" ");
+        plan.setNutrition(" ");
+        plan.setSupplements(" ");
+        plan.setRecovery(" ");
+        planRepository.savePlan(PlanMapper.toMap(plan));
 
-            String claudeResponse = claudeService.generatePlan(userProfile);
+        // 2. Return immediately
+        Response earlyResponse = Response.ok("{\"status\": \"GENERATING\"}").build();
 
-            JsonNode root = objectMapper.readTree(claudeResponse);
-            String planJson = root.path("content").get(0).path("text").asText();
+        // 3. Process in background thread
+        new Thread(() -> {
+            try {
+                String userProfile = buildUserProfile(request);
+                String claudeResponse = claudeService.generatePlan(userProfile);
+                System.out.println("Claude response received");
 
-            planJson = planJson.trim();
-            planJson = planJson.replaceAll("```json\\n?", "")
-                    .replaceAll("```\\n?", "")
-                    .trim();
+                JsonNode root = objectMapper.readTree(claudeResponse);
+                JsonNode content = root.path("content").get(0);
+                JsonNode planNode = content.path("input");
 
-            int start = planJson.indexOf("{");
-            int end = planJson.lastIndexOf("}");
-            if (start != -1 && end != -1) {
-                planJson = planJson.substring(start, end + 1);
+                plan.setStrategy(planNode.path("strategy").asText());
+                plan.setTraining(planNode.path("training").toString());
+                plan.setNutrition(planNode.path("nutrition").asText());
+                plan.setSupplements(planNode.path("supplements").asText());
+                plan.setRecovery(planNode.path("recovery").asText());
+                plan.setStatus("READY");
+                planRepository.savePlan(PlanMapper.toMap(plan));
+                System.out.println("Plan saved with READY status");
+
+            } catch (Exception e) {
+                System.out.println("Plan generation failed: " + e.getMessage());
+                plan.setStatus("FAILED");
+                planRepository.savePlan(PlanMapper.toMap(plan));
             }
+        }).start();
 
-            JsonNode planNode = objectMapper.readTree(planJson);
+        return earlyResponse;
+    }
 
-            // Build and save plan
-            FitPlan plan = new FitPlan();
-            plan.setUserId(request.getUserId());
-            plan.setPlanId(UUID.randomUUID().toString());
-            plan.setCreatedAt(Instant.now().toString());
-            plan.setStrategy(planNode.path("strategy").toString());
-            plan.setTraining(planNode.path("training").toString());
-            plan.setNutrition(planNode.path("nutrition").toString());
-            plan.setSupplements(planNode.path("supplements").toString());
-            plan.setRecovery(planNode.path("recovery").toString());
-
-            planRepository.savePlan(PlanMapper.toMap(plan));
-
-            return Response.ok(plan).build();
-
-        } catch (Exception e) {
-            return Response.serverError()
-                    .entity("{\"message\": \"" + e.getMessage() + "\"}")
-                    .build();
-        }
+    private String buildUserProfile(OnboardingRequest request) {
+        return """
+        Age: %s, Gender: %s, Height: %s, Weight: %s,
+        Physique: %s, Fat storage: %s, Goal: %s,
+        Training level: %s, Gym: %s, Days/week: %s,
+        Session duration: %s, Diet: %s, Food preference: %s,
+        Appetite: %s, Supplements: %s, Injuries: %s,
+        Sleep: %s, Stress: %s, Coaching style: %s,
+        Bulk approach: %s, Visual goals: %s,
+        Uses protein powder: %s, Protein powder type: %s,
+        Needs restock: %s, Wants protein recommendation: %s
+        """.formatted(
+                request.getAge(), request.getGender(), request.getHeight(),
+                request.getWeight(), request.getPhysique(), request.getFatStorage(),
+                request.getPrimaryGoal(), request.getTrainingLevel(), request.getGymAccess(),
+                request.getDaysPerWeek(), request.getSessionDuration(), request.getDietType(),
+                request.getFoodPreference(), request.getAppetite(), request.getSupplements(),
+                request.getInjuries(), request.getSleepHours(), request.getStressLevel(),
+                request.getCoachingStyle(), request.getBulkApproach(), request.getVisualGoals(),
+                request.isUsesProteinPowder(), request.getProteinPowderType(),
+                request.isNeedsProteinRestock(), request.isWantsProteinRecommendation()
+        );
     }
 
     @POST

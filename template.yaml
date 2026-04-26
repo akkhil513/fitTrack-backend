@@ -40,6 +40,14 @@ Resources:
                   - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-plans
                   - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-logs
                   - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fittrack-logs/index/*
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:fittrack/anthropic-api-key*
         - PolicyName: CloudWatchLogsAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -59,7 +67,7 @@ Resources:
       Runtime: java17
       Handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest
       Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 30
+      Timeout: 60
       MemorySize: 512
       Code:
         S3Bucket: fittrack-deployments

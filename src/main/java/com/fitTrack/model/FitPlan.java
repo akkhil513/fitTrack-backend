@@ -13,5 +13,6 @@ public class FitPlan {
     private String nutrition;
     private String supplements;
     private String recovery;
+    private String status;
 
 }

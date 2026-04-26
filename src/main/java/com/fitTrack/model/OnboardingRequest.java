@@ -32,4 +32,8 @@ public class OnboardingRequest {
     private String trackingPreference;
     private String preferredTrainTime;
     private String stressLevel;
+    private boolean usesProteinPowder;
+    private String proteinPowderType;
+    private boolean needsProteinRestock;
+    private boolean wantsProteinRecommendation;
 }

@@ -16,7 +16,8 @@ public class PlanMapper {
                 "training",    AttributeValue.fromS(plan.getTraining()),
                 "nutrition",   AttributeValue.fromS(plan.getNutrition()),
                 "supplements", AttributeValue.fromS(plan.getSupplements()),
-                "recovery",    AttributeValue.fromS(plan.getRecovery())
+                "recovery",    AttributeValue.fromS(plan.getRecovery()),
+                "status", AttributeValue.fromS(plan.getStatus() != null ? plan.getStatus() : "GENERATING")
         );
     }
 
