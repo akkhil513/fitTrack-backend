@@ -33,6 +33,10 @@ public class PlanResource {
     public Response generatePlan(OnboardingRequest request) {
         try {
             System.out.println("Generating plan: " + request.getUserId());
+
+            // Delete old plan if exists
+            planRepository.deletePlan(request.getUserId());
+
             String userProfile = buildUserProfile(request);
             String claudeResponse = claudeService.generatePlan(userProfile);
 
