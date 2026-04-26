@@ -31,46 +31,35 @@ public class PlanResource {
     @POST
     @Path("/generate")
     public Response generatePlan(OnboardingRequest request) {
-        // 1. Save GENERATING status immediately
-        FitPlan plan = new FitPlan();
-        plan.setUserId(request.getUserId());
-        plan.setPlanId(UUID.randomUUID().toString());
-        plan.setCreatedAt(Instant.now().toString());
-        plan.setStatus("GENERATING");
-        plan.setStrategy(" ");
-        plan.setTraining(" ");
-        plan.setNutrition(" ");
-        plan.setSupplements(" ");
-        plan.setRecovery(" ");
-        planRepository.savePlan(PlanMapper.toMap(plan));
+        try {
+            System.out.println("Generating plan: " + request.getUserId());
+            String userProfile = buildUserProfile(request);
+            String claudeResponse = claudeService.generatePlan(userProfile);
 
-        new Thread(() -> {
-            try {
-                String userProfile = buildUserProfile(request);
-                String claudeResponse = claudeService.generatePlan(userProfile);
-                System.out.println("Claude response received");
+            JsonNode root = objectMapper.readTree(claudeResponse);
+            JsonNode planNode = root.path("content").get(0).path("input");
 
-                JsonNode root = objectMapper.readTree(claudeResponse);
-                JsonNode content = root.path("content").get(0);
-                JsonNode planNode = content.path("input");
+            FitPlan plan = new FitPlan();
+            plan.setUserId(request.getUserId());
+            plan.setPlanId(UUID.randomUUID().toString());
+            plan.setCreatedAt(Instant.now().toString());
+            plan.setStatus("READY");
+            plan.setStrategy(planNode.path("strategy").asText());
+            plan.setTraining(planNode.path("training").toString());
+            plan.setNutrition(planNode.path("nutrition").asText());
+            plan.setSupplements(planNode.path("supplements").asText());
+            plan.setRecovery(planNode.path("recovery").asText());
 
-                plan.setStrategy(planNode.path("strategy").asText());
-                plan.setTraining(planNode.path("training").toString());
-                plan.setNutrition(planNode.path("nutrition").asText());
-                plan.setSupplements(planNode.path("supplements").asText());
-                plan.setRecovery(planNode.path("recovery").asText());
-                plan.setStatus("READY");
-                planRepository.savePlan(PlanMapper.toMap(plan));
-                System.out.println("Plan saved with READY status");
+            planRepository.savePlan(PlanMapper.toMap(plan));
+            return Response.ok("{\"status\": \"READY\"}").build();
 
-            } catch (Exception e) {
-                System.out.println("Plan generation failed: " + e.getMessage());
-                plan.setStatus("FAILED");
-                planRepository.savePlan(PlanMapper.toMap(plan));
-            }
-        }).start();
-
-        return Response.ok("{\"status\": \"GENERATING\"}").build();
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            e.printStackTrace();
+            return Response.serverError()
+                    .entity("{\"message\": \"" + e.getMessage() + "\"}")
+                    .build();
+        }
     }
 
     private String buildUserProfile(OnboardingRequest request) {
