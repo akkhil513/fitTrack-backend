@@ -295,7 +295,32 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  PlanGenerateFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt FitTrackLambda.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - POST
+        AllowHeaders:
+          - "*"
+
+  FunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt FitTrackLambda.Arn
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint
     Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+
+  PlanGenerateFunctionUrlOutput:
+    Description: Lambda Function URL for direct plan generation (bypasses API GW 29s limit)
+    Value: !GetAtt PlanGenerateFunctionUrl.FunctionUrl
