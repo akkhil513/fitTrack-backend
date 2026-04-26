@@ -1,7 +1,5 @@
 package com.fitTrack.resource;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fitTrack.service.ClaudeService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -17,8 +15,6 @@ public class NutritionResource {
     @Inject
     ClaudeService claudeService;
 
-    private final ObjectMapper mapper = new ObjectMapper();
-
     @Data
     public static class MealRequest {
         private String description;
@@ -28,12 +24,8 @@ public class NutritionResource {
     @Path("/calculate")
     public Response calculateMacros(MealRequest request) {
         try {
-            String claudeResponse = claudeService.calculateMealMacros(request.getDescription());
-            JsonNode root = mapper.readTree(claudeResponse);
-            String text = root.path("content").get(0).path("text").asText();
-            text = text.replaceAll("```json\\n?", "").replaceAll("```\\n?", "").trim();
-            JsonNode macros = mapper.readTree(text);
-            return Response.ok(macros.toString()).build();
+            String macros = claudeService.calculateMealMacros(request.getDescription());
+            return Response.ok(macros).build();
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : e.getClass().getName();
             return Response.serverError()

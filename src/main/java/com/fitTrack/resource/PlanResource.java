@@ -69,11 +69,13 @@ public class PlanResource {
 
     private String buildUserProfile(OnboardingRequest request) {
         return """
-        Age: %s, Gender: %s, Height: %s, Weight: %s,
+        Age: %s, Gender: %s, Height: %s, Weight: %s kg,
         Physique: %s, Fat storage: %s, Goal: %s,
-        Training level: %s, Gym: %s, Days/week: %s,
-        Session duration: %s, Diet: %s, Food preference: %s,
-        Appetite: %s, Supplements: %s, Injuries: %s,
+        Training level: %s, Gym: %s,
+        TRAINING DAYS PER WEEK: %s (STRICTLY follow this — do not generate more days),
+        Session duration: %s, Preferred time: %s,
+        Diet: %s, Food preference: %s, Appetite: %s,
+        Current supplements: %s, Injuries: %s,
         Sleep: %s, Stress: %s, Coaching style: %s,
         Bulk approach: %s, Visual goals: %s,
         Uses protein powder: %s, Protein powder type: %s,
@@ -82,11 +84,11 @@ public class PlanResource {
                 request.getAge(), request.getGender(), request.getHeight(),
                 request.getWeight(), request.getPhysique(), request.getFatStorage(),
                 request.getPrimaryGoal(), request.getTrainingLevel(), request.getGymAccess(),
-                request.getDaysPerWeek(), request.getSessionDuration(), request.getDietType(),
-                request.getFoodPreference(), request.getAppetite(), request.getSupplements(),
-                request.getInjuries(), request.getSleepHours(), request.getStressLevel(),
-                request.getCoachingStyle(), request.getBulkApproach(), request.getVisualGoals(),
-                request.isUsesProteinPowder(), request.getProteinPowderType(),
+                request.getDaysPerWeek(), request.getSessionDuration(), request.getPreferredTrainTime(),
+                request.getDietType(), request.getFoodPreference(), request.getAppetite(),
+                request.getSupplements(), request.getInjuries(), request.getSleepHours(),
+                request.getStressLevel(), request.getCoachingStyle(), request.getBulkApproach(),
+                request.getVisualGoals(), request.isUsesProteinPowder(), request.getProteinPowderType(),
                 request.isNeedsProteinRestock(), request.isWantsProteinRecommendation()
         );
     }
