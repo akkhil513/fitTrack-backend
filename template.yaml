@@ -58,6 +58,16 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
+        - PolicyName: S3UploadsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: arn:aws:s3:::fittrack-user-uploads/*
 
 
   FitTrackLambda:
@@ -212,6 +222,13 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /nutrition/calculate'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PhotoUploadRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /users/photo/upload'
       Target: !Sub integrations/${LambdaIntegration}
 
   HealthRoute:

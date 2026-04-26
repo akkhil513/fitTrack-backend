@@ -77,4 +77,15 @@ public class UserRepository {
                 ))
                 .build());
     }
+
+    public void updatePhotoUrl(String userId, String photoUrl) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of("userId", AttributeValue.fromS(userId)))
+                .updateExpression("SET photoUrl = :p")
+                .expressionAttributeValues(Map.of(
+                        ":p", AttributeValue.fromS(photoUrl)
+                ))
+                .build());
+    }
 }
