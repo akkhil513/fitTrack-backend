@@ -14,5 +14,5 @@ public class FitPlan {
     private String supplements;
     private String recovery;
     private String status;
-
+    private String dailyChecklist;
 }

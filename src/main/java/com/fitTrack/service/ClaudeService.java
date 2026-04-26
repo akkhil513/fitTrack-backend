@@ -97,20 +97,34 @@ public class ClaudeService {
             trainingProperties.put(day, daySchema);
         }
 
+        Map<String, Object> checklistItem = Map.of(
+                "type", "object",
+                "required", List.of("id", "label", "category", "time"),
+                "properties", Map.of(
+                        "id", Map.of("type", "string"),
+                        "label", Map.of("type", "string"),
+                        "category", Map.of("type", "string", "enum", List.of("supplement", "nutrition", "training", "recovery")),
+                        "time", Map.of("type", "string")
+                )
+        );
+
+        Map<String, Object> inputSchemaProperties = new java.util.LinkedHashMap<>();
+        inputSchemaProperties.put("strategy",       Map.of("type", "string"));
+        inputSchemaProperties.put("training",        Map.of("type", "object", "properties", trainingProperties));
+        inputSchemaProperties.put("nutrition",       Map.of("type", "string"));
+        inputSchemaProperties.put("supplements",     Map.of("type", "string"));
+        inputSchemaProperties.put("recovery",        Map.of("type", "string"));
+        inputSchemaProperties.put("dailyChecklist",  Map.of("type", "array", "items", checklistItem));
+
+        Map<String, Object> inputSchema = new java.util.LinkedHashMap<>();
+        inputSchema.put("type", "object");
+        inputSchema.put("required", List.of("strategy", "training", "nutrition", "supplements", "recovery", "dailyChecklist"));
+        inputSchema.put("properties", inputSchemaProperties);
+
         Map<String, Object> tool = Map.of(
                 "name", "generate_fitness_plan",
                 "description", "Generate a personalized fitness plan",
-                "input_schema", Map.of(
-                        "type", "object",
-                        "required", List.of("strategy", "training", "nutrition", "supplements", "recovery"),
-                        "properties", Map.of(
-                                "strategy",    Map.of("type", "string"),
-                                "training",    Map.of("type", "object", "properties", trainingProperties),
-                                "nutrition",   Map.of("type", "string"),
-                                "supplements", Map.of("type", "string"),
-                                "recovery",    Map.of("type", "string")
-                        )
-                )
+                "input_schema", inputSchema
         );
 
         Map<String, Object> requestBody = new java.util.LinkedHashMap<>();
@@ -119,12 +133,16 @@ public class ClaudeService {
         requestBody.put("system",
                 "You are an elite fitness coach with 15+ years experience. " +
                 "Generate evidence-based, progressive overload focused plans. " +
-                "For supplements: be specific about what the user should take based on their goal, diet type, stress level, and current supplements. " +
-                "If user currently uses protein powder, evaluate if it is optimal for their goal — if not, recommend a better type with specific brands. " +
-                "If user is restocking or doesn't use protein powder and wants a recommendation, recommend the best type (Isolate/Concentrate/Plant) with 2-3 brand names and why. " +
-                "Include dosage and timing for all supplements. " +
+                "For supplements: be specific based on goal, diet, stress, current supplements. " +
+                "If user is restocking protein powder, recommend best type with brands and dosage. " +
                 "For nutrition: include specific calorie and protein targets based on weight and goal. " +
-                "Keep strategy, nutrition, supplements, recovery as detailed strings under 500 chars."
+                "For dailyChecklist: generate 12-15 daily actionable items the user must complete every day. " +
+                "Include items from all 4 categories: supplement (taking each supplement at right time), " +
+                "nutrition (hitting protein/calorie targets, water intake, meal timing), " +
+                "training (complete workout, log sets/reps), " +
+                "recovery (sleep hours, stress management, steps, foam rolling). " +
+                "Each item should have a specific time (Morning, Pre-workout, Post-workout, With lunch, Evening, Before bed, Daily). " +
+                "Keep strategy, nutrition, supplements, recovery under 500 chars each."
         );
         requestBody.put("tools", List.of(tool));
         requestBody.put("tool_choice", Map.of("type", "tool", "name", "generate_fitness_plan"));

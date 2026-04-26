@@ -53,6 +53,7 @@ public class PlanResource {
             plan.setNutrition(planNode.path("nutrition").asText());
             plan.setSupplements(planNode.path("supplements").asText());
             plan.setRecovery(planNode.path("recovery").asText());
+            plan.setDailyChecklist(planNode.path("dailyChecklist").toString());
 
             planRepository.savePlan(PlanMapper.toMap(plan));
             return Response.ok("{\"status\": \"READY\"}").build();
