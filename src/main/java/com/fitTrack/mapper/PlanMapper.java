@@ -31,6 +31,7 @@ public class PlanMapper {
         plan.setNutrition(item.get("nutrition").s());
         plan.setSupplements(item.get("supplements").s());
         plan.setRecovery(item.get("recovery").s());
+        plan.setStatus(item.getOrDefault("status", AttributeValue.fromS("GENERATING")).s());
         return plan;
     }
 }
