@@ -44,10 +44,6 @@ public class PlanResource {
         plan.setRecovery(" ");
         planRepository.savePlan(PlanMapper.toMap(plan));
 
-        // 2. Return immediately
-        Response earlyResponse = Response.ok("{\"status\": \"GENERATING\"}").build();
-
-        // 3. Process in background thread
         new Thread(() -> {
             try {
                 String userProfile = buildUserProfile(request);
@@ -74,7 +70,7 @@ public class PlanResource {
             }
         }).start();
 
-        return earlyResponse;
+        return Response.ok("{\"status\": \"GENERATING\"}").build();
     }
 
     private String buildUserProfile(OnboardingRequest request) {
