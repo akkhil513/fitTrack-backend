@@ -21,6 +21,7 @@ public class LogMapper {
         item.put("sleep",     AttributeValue.fromS(nullSafe(log.getSleep())));
         item.put("notes",     AttributeValue.fromS(nullSafe(log.getNotes())));
         item.put("checklist",  AttributeValue.fromS(nullSafe(log.getChecklistJson())));
+        item.put("foodEntries", AttributeValue.fromS(nullSafe(log.getFoodEntries())));
         return item;
     }
 
@@ -41,6 +42,7 @@ public class LogMapper {
         log.setSleep(item.get("sleep").s());
         log.setNotes(item.get("notes").s());
         log.setChecklistJson(item.getOrDefault("checklist", AttributeValue.fromS(" ")).s());
+        log.setFoodEntries(item.getOrDefault("foodEntries", AttributeValue.fromS(" ")).s());
         return log;
     }
 }

@@ -107,8 +107,6 @@ public class ClaudeService {
         - Match exercises to reported equipment. If unspecified, assume dumbbells + bodyweight.
         - If experience unspecified, default to beginner volumes.
         - CRITICAL: Generate EXACTLY the number of training days the user specified. Never exceed it.
-        - Back days: ALWAYS train biceps with back on the same day. Pull = Back + Biceps. Never separate them.
-        - Follow Push/Pull/Legs structure where possible for the specified number of days.
 
         SAFETY:
         - Injury, medication, pregnancy, age <18 or >65 → add "consult physician" note in strategy.

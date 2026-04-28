@@ -67,7 +67,8 @@ public class LogResource {
                 ":w",  value(log.getWater(), existing, "water"),
                 ":sl", value(log.getSleep(), existing, "sleep"),
                 ":n",  value(log.getNotes(), existing, "notes"),
-                ":cl", value(log.getChecklistJson(), existing, "checklist")
+                ":cl", value(log.getChecklistJson(), existing, "checklist"),
+                ":fe", value(log.getFoodEntries(), existing, "foodEntries")
         );
     }
 

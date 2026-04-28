@@ -20,4 +20,5 @@ public class FitLog {
     private Map<String, String> nutrition;
     private Map<String, String> checklist;
     private String checklistJson;
+    private String foodEntries;
 }
