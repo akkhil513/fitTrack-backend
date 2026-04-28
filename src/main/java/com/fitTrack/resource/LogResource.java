@@ -135,16 +135,20 @@ public class LogResource {
         String water = isValid(log.getWater()) ? log.getWater() : existing.getOrDefault("water", AttributeValue.fromS(" ")).s();
         String sleep = isValid(log.getSleep()) ? log.getSleep() : existing.getOrDefault("sleep", AttributeValue.fromS(" ")).s();
         String notes = isValid(log.getNotes()) ? log.getNotes() : existing.getOrDefault("notes", AttributeValue.fromS(" ")).s();
+        String checklist = isValid(log.getChecklistJson()) ? log.getChecklistJson() : existing.getOrDefault("checklist", AttributeValue.fromS(" ")).s();
+        String foodEntries = isValid(log.getFoodEntries()) ? log.getFoodEntries() : existing.getOrDefault("foodEntries", AttributeValue.fromS(" ")).s();
 
-        logRepository.updateLog(userId, date, Map.of(
-                ":s",  AttributeValue.fromS(session),
-                ":e",  AttributeValue.fromS(exercises),
-                ":p",  AttributeValue.fromS(protein),
-                ":c",  AttributeValue.fromS(calories),
-                ":w",  AttributeValue.fromS(water),
-                ":sl", AttributeValue.fromS(sleep),
-                ":n",  AttributeValue.fromS(notes)
-        ));
+        Map<String, AttributeValue> updateValues = new java.util.HashMap<>();
+        updateValues.put(":s",  AttributeValue.fromS(session));
+        updateValues.put(":e",  AttributeValue.fromS(exercises));
+        updateValues.put(":p",  AttributeValue.fromS(protein));
+        updateValues.put(":c",  AttributeValue.fromS(calories));
+        updateValues.put(":w",  AttributeValue.fromS(water));
+        updateValues.put(":sl", AttributeValue.fromS(sleep));
+        updateValues.put(":n",  AttributeValue.fromS(notes));
+        updateValues.put(":cl", AttributeValue.fromS(checklist));
+        updateValues.put(":fe", AttributeValue.fromS(foodEntries));
+        logRepository.updateLog(userId, date, updateValues);
 
         return Response.ok("{\"message\": \"Log updated successfully!\"}").build();
     }
