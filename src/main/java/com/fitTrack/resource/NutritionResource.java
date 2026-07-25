@@ -1,6 +1,6 @@
 package com.fitTrack.resource;
 
-import com.fitTrack.service.ClaudeService;
+import com.fitTrack.service.AIService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -13,7 +13,7 @@ import lombok.Data;
 public class NutritionResource {
 
     @Inject
-    ClaudeService claudeService;
+    AIService AIService;
 
     @Data
     public static class MealRequest {
@@ -24,7 +24,7 @@ public class NutritionResource {
     @Path("/calculate")
     public Response calculateMacros(MealRequest request) {
         try {
-            String macros = claudeService.calculateMealMacros(request.getDescription());
+            String macros = AIService.calculateMealMacros(request.getDescription());
             return Response.ok(macros).build();
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : e.getClass().getName();

@@ -6,7 +6,7 @@ import com.fitTrack.mapper.PlanMapper;
 import com.fitTrack.model.FitPlan;
 import com.fitTrack.model.OnboardingRequest;
 import com.fitTrack.repository.PlanRepository;
-import com.fitTrack.service.ClaudeService;
+import com.fitTrack.service.AIService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -24,7 +24,7 @@ public class PlanResource {
     PlanRepository planRepository;
 
     @Inject
-    ClaudeService claudeService;
+    AIService AIService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -38,21 +38,34 @@ public class PlanResource {
             planRepository.deletePlan(request.getUserId());
 
             String userProfile = buildUserProfile(request);
-            String claudeResponse = claudeService.generatePlan(userProfile);
+            String claudeResponse = AIService.generatePlan(userProfile);
 
             JsonNode root = objectMapper.readTree(claudeResponse);
-            JsonNode planNode = root.path("content").get(0).path("input");
+
+            // Gemini response structure
+            String text = root.path("candidates").get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
+
+            System.out.println("Gemini text: " + text);
+
+            // Clean JSON markers if present
+            text = text.replaceAll("```json\\n?", "")
+                    .replaceAll("```\\n?", "")
+                    .trim();
+
+            JsonNode planNode = objectMapper.readTree(text);
 
             FitPlan plan = new FitPlan();
             plan.setUserId(request.getUserId());
             plan.setPlanId(UUID.randomUUID().toString());
             plan.setCreatedAt(Instant.now().toString());
-            plan.setStatus("READY");
             plan.setStrategy(planNode.path("strategy").asText());
             plan.setTraining(planNode.path("training").toString());
             plan.setNutrition(planNode.path("nutrition").asText());
             plan.setSupplements(planNode.path("supplements").asText());
             plan.setRecovery(planNode.path("recovery").asText());
+            plan.setStatus("READY");
             plan.setDailyChecklist(planNode.path("dailyChecklist").toString());
 
             planRepository.savePlan(PlanMapper.toMap(plan));
