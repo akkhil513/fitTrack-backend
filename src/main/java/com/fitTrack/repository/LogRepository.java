@@ -6,6 +6,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,29 @@ public class LogRepository {
                         ":uid", AttributeValue.fromS(userId)
                 ))
                 .build()).items();
+    }
+
+    /** All logs for a user with {@code from <= date <= to} (ISO dates, inclusive), across result pages. */
+    public List<Map<String, AttributeValue>> getLogsBetween(String userId, String from, String to) {
+        List<Map<String, AttributeValue>> out = new ArrayList<>();
+        Map<String, AttributeValue> lastKey = null;
+        do {
+            QueryRequest.Builder request = QueryRequest.builder()
+                    .tableName(TABLE)
+                    .keyConditionExpression("userId = :uid AND #d BETWEEN :from AND :to")
+                    .expressionAttributeNames(Map.of("#d", "date"))
+                    .expressionAttributeValues(Map.of(
+                            ":uid", AttributeValue.fromS(userId),
+                            ":from", AttributeValue.fromS(from),
+                            ":to", AttributeValue.fromS(to)));
+            if (lastKey != null) {
+                request.exclusiveStartKey(lastKey);
+            }
+            QueryResponse page = dynamoDB.query(request.build());
+            out.addAll(page.items());
+            lastKey = page.hasLastEvaluatedKey() && !page.lastEvaluatedKey().isEmpty() ? page.lastEvaluatedKey() : null;
+        } while (lastKey != null);
+        return out;
     }
 
     public void updateLog(String userId, String date, Map<String, AttributeValue> values) {

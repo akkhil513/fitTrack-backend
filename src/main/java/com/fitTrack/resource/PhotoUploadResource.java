@@ -1,6 +1,7 @@
 package com.fitTrack.resource;
 
 import com.fitTrack.repository.UserRepository;
+import com.fitTrack.security.CallerIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -35,7 +36,8 @@ public class PhotoUploadResource {
 
     @POST
     @Path("/upload")
-    public Response uploadPhoto(PhotoRequest request) {
+    public Response uploadPhoto(@HeaderParam("Authorization") String authorization, PhotoRequest request) {
+        CallerIdentity.requireSelf(authorization, request.getUserId());
         try {
             // Decode base64
             String base64 = request.getBase64Image()

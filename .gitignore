@@ -46,3 +46,6 @@ secrets.properties
 
 # Plugin directory
 /.quarkus/cli/plugins/
+
+# Local Lambda invoke output
+output.json

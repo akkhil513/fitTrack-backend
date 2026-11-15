@@ -23,6 +23,9 @@ public class UserMapper {
         user.setMeasurementHistory(item.getOrDefault("measurementHistory", AttributeValue.fromS(" ")).s());
         user.setMealTemplates(item.getOrDefault("mealTemplates", AttributeValue.fromS(" ")).s());
         user.setPhotoUrl(item.getOrDefault("photoUrl", AttributeValue.fromS(" ")).s());
+        user.setChallengeDuration(
+                item.getOrDefault("challengeDuration",
+                        AttributeValue.fromS("100")).s());
         return user;
     }
 
@@ -38,6 +41,9 @@ public class UserMapper {
         map.put("measurementHistory", AttributeValue.fromS(nullSafe(user.getMeasurementHistory())));
         map.put("mealTemplates",      AttributeValue.fromS(nullSafe(user.getMealTemplates())));
         map.put("photoUrl",           AttributeValue.fromS(nullSafe(user.getPhotoUrl())));
+        map.put("challengeDuration", AttributeValue.fromS(
+                nullSafe(user.getChallengeDuration() != null ?
+                        user.getChallengeDuration() : "100")));
         return map;
     }
 }

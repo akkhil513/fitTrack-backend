@@ -36,4 +36,5 @@ public class OnboardingRequest {
     private String proteinPowderType;
     private boolean needsProteinRestock;
     private boolean wantsProteinRecommendation;
+    private String challengeDuration;
 }

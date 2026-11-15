@@ -5,6 +5,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -27,6 +28,20 @@ public class PlanRepository {
                 .tableName(TABLE)
                 .item(item)
                 .build());
+    }
+
+    /** Writes the item only if no item with this key exists. Returns false when it already did. */
+    public boolean putIfAbsent(Map<String, AttributeValue> item) {
+        try {
+            dynamoDB.putItem(PutItemRequest.builder()
+                    .tableName(TABLE)
+                    .item(item)
+                    .conditionExpression("attribute_not_exists(userId)")
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
     }
 
     // Fetches plan by userId
