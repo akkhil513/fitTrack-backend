@@ -6,6 +6,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -32,16 +33,29 @@ public class UserRepository {
                 .build()).item();
     }
 
-    public void updateUser(String userId, String firstName, String lastName, String startDate) {
+    public void updateUser(String userId, String firstName, String lastName,
+                           String startDate, String challengeDuration) {
         dynamoDB.updateItem(UpdateItemRequest.builder()
                 .tableName(TABLE)
                 .key(Map.of("userId", AttributeValue.fromS(userId)))
-                .updateExpression("SET firstName = :fn, lastName = :ln, startDate = :sd")
+                .updateExpression(
+                        "SET firstName = :fn, lastName = :ln, startDate = :sd, challengeDuration = :cd")
                 .expressionAttributeValues(Map.of(
                         ":fn", AttributeValue.fromS(firstName != null ? firstName : " "),
                         ":ln", AttributeValue.fromS(lastName != null ? lastName : " "),
-                        ":sd", AttributeValue.fromS(startDate != null ? startDate : " ")
+                        ":sd", AttributeValue.fromS(startDate != null ? startDate : " "),
+                        ":cd", AttributeValue.fromS(challengeDuration != null ? challengeDuration : "100")
                 )).build());
+    }
+
+    /** Sets only the challenge length, leaving every other profile field untouched. */
+    public void setChallengeDuration(String userId, String challengeDuration) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of("userId", AttributeValue.fromS(userId)))
+                .updateExpression("SET challengeDuration = :cd")
+                .expressionAttributeValues(Map.of(":cd", AttributeValue.fromS(challengeDuration)))
+                .build());
     }
 
     public boolean isUsernameTaken(String username) {
@@ -87,5 +101,11 @@ public class UserRepository {
                         ":p", AttributeValue.fromS(photoUrl)
                 ))
                 .build());
+    }
+
+    public List<Map<String, AttributeValue>> scanAll() {
+        return dynamoDB.scan(ScanRequest.builder()
+                .tableName(TABLE)
+                .build()).items();
     }
 }

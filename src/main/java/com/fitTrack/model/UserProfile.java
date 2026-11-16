@@ -16,4 +16,5 @@ public class UserProfile {
     private String measurementHistory;
     private String mealTemplates;
     private String photoUrl;
+    private String challengeDuration;
 }

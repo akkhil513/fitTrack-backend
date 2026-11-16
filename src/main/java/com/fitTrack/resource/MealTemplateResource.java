@@ -1,6 +1,7 @@
 package com.fitTrack.resource;
 
 import com.fitTrack.repository.UserRepository;
+import com.fitTrack.security.CallerIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -22,7 +23,8 @@ public class MealTemplateResource {
 
     @PUT
     @Path("/{userId}")
-    public Response updateMealTemplates(@PathParam("userId") String userId, MealTemplateRequest body) {
+    public Response updateMealTemplates(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId, MealTemplateRequest body) {
+        CallerIdentity.requireSelf(authorization, userId);
         var existing = userRepository.getUser(userId);
         if (existing == null || existing.isEmpty()) {
             return Response.status(404).build();
@@ -33,7 +35,8 @@ public class MealTemplateResource {
 
     @GET
     @Path("/{userId}")
-    public Response getMealTemplates(@PathParam("userId") String userId) {
+    public Response getMealTemplates(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId) {
+        CallerIdentity.requireSelf(authorization, userId);
         var item = userRepository.getUser(userId);
         if (item == null || item.isEmpty()) {
             return Response.status(404).build();

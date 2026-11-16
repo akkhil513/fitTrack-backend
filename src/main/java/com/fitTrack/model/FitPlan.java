@@ -15,4 +15,7 @@ public class FitPlan {
     private String recovery;
     private String status;
     private String dailyChecklist;
+    private int weekNumber;
+    /** Onboarding answers as sent to the model, kept so weekly regeneration knows the user's goal and limits. */
+    private String profile;
 }

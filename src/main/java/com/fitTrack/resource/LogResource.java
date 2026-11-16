@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fitTrack.mapper.LogMapper;
 import com.fitTrack.model.FitLog;
 import com.fitTrack.repository.LogRepository;
+import com.fitTrack.security.CallerIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -23,7 +24,8 @@ public class LogResource {
 
     @POST
     @Path("/createLog")
-    public Response saveLog(FitLog log) {
+    public Response saveLog(@HeaderParam("Authorization") String authorization, FitLog log) {
+        CallerIdentity.requireSelf(authorization, log.getUserId());
         extractNestedFields(log);
 
         var existing = logRepository.getLog(log.getUserId(), log.getDate());
@@ -83,7 +85,8 @@ public class LogResource {
     // GET /logs/{userId}/{date} — gets log for specific date
     @GET
     @Path("/{userId}/{date}")
-    public Response getLog(@PathParam("userId") String userId, @PathParam("date") String date) {
+    public Response getLog(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId, @PathParam("date") String date) {
+        CallerIdentity.requireSelf(authorization, userId);
         var item = logRepository.getLog(userId, date);
         if (item == null || item.isEmpty()) {
             return Response.status(404).build();
@@ -94,7 +97,8 @@ public class LogResource {
     // GET /logs/{userId} — gets all logs for a user
     @GET
     @Path("/{userId}")
-    public Response getLogs(@PathParam("userId") String userId) {
+    public Response getLogs(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId) {
+        CallerIdentity.requireSelf(authorization, userId);
         var items = logRepository.getLogs(userId);
         var logs = items.stream().map(LogMapper::toLog).collect(Collectors.toList());
         return Response.ok(logs).build();
@@ -102,9 +106,10 @@ public class LogResource {
 
     @PUT
     @Path("/update/{userId}/{date}")
-    public Response updateLog(@PathParam("userId") String userId,
+    public Response updateLog(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId,
                               @PathParam("date") String date,
                               FitLog log) {
+        CallerIdentity.requireSelf(authorization, userId);
         var existing = logRepository.getLog(userId, date);
         if (existing == null || existing.isEmpty()) {
             return Response.status(404)

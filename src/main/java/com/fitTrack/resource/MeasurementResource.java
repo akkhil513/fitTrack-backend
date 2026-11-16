@@ -1,6 +1,7 @@
 package com.fitTrack.resource;
 
 import com.fitTrack.repository.UserRepository;
+import com.fitTrack.security.CallerIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -23,7 +24,8 @@ public class MeasurementResource {
 
     @PUT
     @Path("/{userId}")
-    public Response updateMeasurements(@PathParam("userId") String userId, MeasurementRequest body) {
+    public Response updateMeasurements(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId, MeasurementRequest body) {
+        CallerIdentity.requireSelf(authorization, userId);
         var existing = userRepository.getUser(userId);
 
         if (existing == null || existing.isEmpty()) {

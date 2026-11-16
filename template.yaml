@@ -9,6 +9,13 @@ Parameters:
       - dev
       - prod
 
+  CognitoUserPoolId:
+    Type: String
+    Default: us-east-1_FiMxzIAMO
+  CognitoClientId:
+    Type: String
+    Default: 5mqksvmvu33fqsk9e570f22jcf
+
 Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -47,7 +54,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:fittrack/anthropic-api-key*
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:fittrack/anthropic-api-key*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:fittrack/gemini-api-key*
         - PolicyName: CloudWatchLogsAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -69,7 +78,7 @@ Resources:
                   - s3:DeleteObject
                 Resource: arn:aws:s3:::fittrack-user-uploads/*
 
-
+  # ── MAIN LAMBDA ─────────────────────────────────────────────
   FitTrackLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -77,8 +86,8 @@ Resources:
       Runtime: java17
       Handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest
       Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 60
-      MemorySize: 512
+      Timeout: 300
+      MemorySize: 1024
       Code:
         S3Bucket: fittrack-deployments
         S3Key: backend/function.zip
@@ -86,7 +95,51 @@ Resources:
         Variables:
           COGNITO_USER_POOL_ID: us-east-1_FiMxzIAMO
           ENVIRONMENT: !Ref Environment
+          APP_ZONE: America/New_York
 
+  # ── EVENTBRIDGE RULE ────────────────────────────────────────
+  # Fires daily at 2 AM Eastern (7 AM UTC). The service decides per user whether a new week is due:
+  # after the last training day of the week is done (Sat/Sun), or as a Monday catch-up.
+  WeeklyPlanScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub fittrack-weekly-plan-rule-${Environment}
+      Description: Daily check for users whose next weekly plan is due
+      ScheduleExpression: 'cron(0 7 * * ? *)'
+      State: ENABLED
+      Targets:
+        - Id: FitTrackWeeklyPlanTarget
+          Arn: !GetAtt FitTrackLambda.Arn
+          Input: |
+            {
+              "version": "2.0",
+              "routeKey": "POST /plans/generate-weekly-scheduled",
+              "rawPath": "/plans/generate-weekly-scheduled",
+              "rawQueryString": "",
+              "headers": {
+                "content-type": "application/json"
+              },
+              "requestContext": {
+                "http": {
+                  "method": "POST",
+                  "path": "/plans/generate-weekly-scheduled",
+                  "protocol": "HTTP/1.1"
+                }
+              },
+              "body": "{\"source\":\"eventbridge\",\"action\":\"GENERATE_WEEKLY_PLANS\"}",
+              "isBase64Encoded": false
+            }
+
+  # Permission for EventBridge to invoke Lambda
+  WeeklyPlanSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FitTrackLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklyPlanScheduleRule.Arn
+
+  # ── API GATEWAY ─────────────────────────────────────────────
   ApiGateway:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -112,11 +165,27 @@ Resources:
       IntegrationUri: !GetAtt FitTrackLambda.Arn
       PayloadFormatVersion: '2.0'
 
+  # Verifies the Cognito ID token on every route except the public ones below.
+  ApiJwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref ApiGateway
+      Name: cognito-jwt
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref CognitoClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}
+
   UsersPostRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /users'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   UsersGetRoute:
@@ -124,6 +193,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /users/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   UsersUpdateRoute:
@@ -131,6 +202,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'PUT /users/update/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   PlansGenerateRoute:
@@ -138,6 +211,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /plans/generate'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   PlansGetRoute:
@@ -145,6 +220,17 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /plans/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PlansGenerateWeeklyRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /plans/generate-weekly'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   LogsCreateRoute:
@@ -152,6 +238,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /logs/createLog'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   LogsGetRoute:
@@ -159,6 +247,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /logs/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   LogsGetByDateRoute:
@@ -166,6 +256,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /logs/{userId}/{date}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   LogsUpdateRoute:
@@ -173,6 +265,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'PUT /logs/update/{userId}/{date}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   PlansCreateRoute:
@@ -180,6 +274,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /plans/createPlan'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   UsersCreateRoute:
@@ -187,6 +283,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /users/create'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   UsersCheckRoute:
@@ -201,6 +299,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'PUT /measurements/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   MealTemplatesGetRoute:
@@ -208,6 +308,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /meal-templates/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   MealTemplatesPutRoute:
@@ -215,6 +317,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'PUT /meal-templates/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   NutritionCalculateRoute:
@@ -222,6 +326,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /nutrition/calculate'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   PhotoUploadRoute:
@@ -229,6 +335,8 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'POST /users/photo/upload'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   HealthRoute:
@@ -236,6 +344,15 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'GET /health'
+      Target: !Sub integrations/${LambdaIntegration}
+
+  WeeklyScheduledRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /plans/generate-weekly-scheduled'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}
 
   ApiStage:
@@ -253,6 +370,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*
 
+  # ── DYNAMODB TABLES ─────────────────────────────────────────
   FitTrackUsersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -312,32 +430,11 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  PlanGenerateFunctionUrl:
-    Type: AWS::Lambda::Url
-    Properties:
-      TargetFunctionArn: !GetAtt FitTrackLambda.Arn
-      AuthType: NONE
-      Cors:
-        AllowOrigins:
-          - "*"
-        AllowMethods:
-          - POST
-        AllowHeaders:
-          - "*"
-
-  FunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt FitTrackLambda.Arn
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
-      FunctionUrlAuthType: NONE
-
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint
-    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com
 
-  PlanGenerateFunctionUrlOutput:
-    Description: Lambda Function URL for direct plan generation (bypasses API GW 29s limit)
-    Value: !GetAtt PlanGenerateFunctionUrl.FunctionUrl
+  WeeklyPlanScheduleRuleArn:
+    Description: EventBridge rule ARN for weekly plan generation
+    Value: !GetAtt WeeklyPlanScheduleRule.Arn

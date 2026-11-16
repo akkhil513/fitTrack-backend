@@ -3,6 +3,7 @@ package com.fitTrack.resource;
 import com.fitTrack.mapper.UserMapper;
 import com.fitTrack.model.UserProfile;
 import com.fitTrack.repository.UserRepository;
+import com.fitTrack.security.CallerIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -18,14 +19,16 @@ public class UserResource {
 
     @POST
     @Path("/create")
-    public Response createUser(UserProfile user) {
+    public Response createUser(@HeaderParam("Authorization") String authorization, UserProfile user) {
+        CallerIdentity.requireSelf(authorization, user.getUserId());
         userRepository.saveUser(UserMapper.toMap(user));
         return Response.ok("{\"message\": \"Yaay! " + user.getFirstName() + ", your account has been created successfully!\"}").build();
     }
 
     @GET
     @Path("/{userId}")
-    public Response getUser(@PathParam("userId") String userId) {
+    public Response getUser(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId) {
+        CallerIdentity.requireSelf(authorization, userId);
         var item = userRepository.getUser(userId);
         if (item == null || item.isEmpty()) {
             return Response.status(404).build();
@@ -35,12 +38,19 @@ public class UserResource {
 
     @PUT
     @Path("/update/{userId}")
-    public Response updateUser(@PathParam("userId") String userId, UserProfile user) {
+    public Response updateUser(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId, UserProfile user) {
+        CallerIdentity.requireSelf(authorization, userId);
         var existing = userRepository.getUser(userId);
         if (existing == null || existing.isEmpty()) {
             return Response.status(404).build();
         }
-        userRepository.updateUser(userId, user.getFirstName(), user.getLastName(), user.getStartDate());
+        userRepository.updateUser(
+                userId,
+                user.getFirstName(),
+                user.getLastName(),
+                user.getStartDate(),
+                user.getChallengeDuration()
+        );
         return Response.ok("{\"message\": \"Profile updated successfully!\"}").build();
     }
 
@@ -59,7 +69,8 @@ public class UserResource {
 
     @PUT
     @Path("/measurements/{userId}")
-    public Response updateMeasurements(@PathParam("userId") String userId, UserProfile user) {
+    public Response updateMeasurements(@HeaderParam("Authorization") String authorization, @PathParam("userId") String userId, UserProfile user) {
+        CallerIdentity.requireSelf(authorization, userId);
         var existing = userRepository.getUser(userId);
         if (existing == null || existing.isEmpty()) {
             return Response.status(404).build();

@@ -285,7 +285,7 @@ aws s3 cp target/function.zip s3://fittrack-deployments/backend/function.zip
 ```shell
 sam deploy \
   --template-file template.yaml \
-  --stack-name fittrack-backend \
+  --stack-name fittrack-stack \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides Environment=dev
 ```
@@ -293,7 +293,7 @@ sam deploy \
 **4. Retrieve the API endpoint**
 ```shell
 aws cloudformation describe-stacks \
-  --stack-name fittrack-backend \
+  --stack-name fittrack-stack \
   --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
   --output text
 ```
