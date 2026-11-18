@@ -13,7 +13,14 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import com.fitTrack.service.ExerciseSwap;
+import com.fitTrack.service.SlidingWindowLimiter;
+import lombok.Data;
+import org.jboss.logging.Logger;
+
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Path("/plans")
@@ -30,7 +37,19 @@ public class PlanResource {
     @Inject
     com.fitTrack.repository.UserRepository userRepository;
 
+    private static final Logger LOG = Logger.getLogger(PlanResource.class);
+
+    /** Each swap costs a Gemini call: cap them per user (best effort, per warm container). */
+    private static final SlidingWindowLimiter SWAP_LIMIT = new SlidingWindowLimiter(20, Duration.ofHours(1));
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Data
+    public static class SwapRequest {
+        private String day;
+        private String exercise;
+        private String reason;
+    }
 
     @POST
     @Path("/generate")
@@ -156,5 +175,74 @@ public class PlanResource {
             return Response.status(404).build();
         }
         return Response.ok(PlanMapper.toPlan(item)).build();
+    }
+
+    // POST /plans/{userId}/swap: replace one exercise with an AI-suggested alternative.
+    @POST
+    @Path("/{userId}/swap")
+    public Response swapExercise(@HeaderParam("Authorization") String authorization,
+                                 @PathParam("userId") String userId,
+                                 SwapRequest body) {
+        CallerIdentity.requireSelf(authorization, userId);
+        if (body == null) {
+            return badRequest("Missing request body");
+        }
+
+        String day;
+        String reason;
+        try {
+            day = ExerciseSwap.validDay(body.getDay());
+            reason = ExerciseSwap.cleanReason(body.getReason());
+        } catch (IllegalArgumentException e) {
+            return badRequest(e.getMessage());
+        }
+        if (body.getExercise() == null || body.getExercise().isBlank() || body.getExercise().length() > 100) {
+            return badRequest("Choose an exercise to replace");
+        }
+
+        var item = planRepository.getPlan(userId);
+        if (item == null || item.isEmpty()) {
+            return Response.status(404).build();
+        }
+        FitPlan plan = PlanMapper.toPlan(item);
+        if (!"READY".equals(plan.getStatus())) {
+            return badRequest("Your plan is not ready yet");
+        }
+
+        com.fasterxml.jackson.databind.JsonNode training;
+        try {
+            training = objectMapper.readTree(plan.getTraining());
+        } catch (Exception e) {
+            return Response.status(409).entity(Map.of("message", "Your plan could not be read")).build();
+        }
+        var dayNode = training.path(day);
+        var current = ExerciseSwap.find(dayNode, body.getExercise());
+        if (current == null || dayNode.path("isRestDay").asBoolean(false)) {
+            return badRequest("That exercise is not in your plan");
+        }
+
+        if (!SWAP_LIMIT.tryAcquire(userId, System.currentTimeMillis())) {
+            return Response.status(429).entity(Map.of("message", "Too many swaps. Try again later.")).build();
+        }
+
+        try {
+            var names = ExerciseSwap.namesIn(dayNode);
+            String prompt = ExerciseSwap.buildPrompt(
+                    plan.getProfile(), dayNode.path("session").asText(""), current, names, reason);
+            var replacement = ExerciseSwap.parse(
+                    AIService.askShortAnswer(prompt), names, current.path("name").asText(""));
+            String updated = ExerciseSwap.apply(
+                    plan.getTraining(), day, current.path("name").asText(""), replacement);
+            planRepository.updateTraining(userId, updated);
+            return Response.ok(Map.of("training", updated)).build();
+        } catch (Exception e) {
+            // Never echo model output or exception text to the caller.
+            LOG.errorf("Exercise swap failed: %s", e.getClass().getSimpleName());
+            return Response.status(502).entity(Map.of("message", "Could not suggest a swap. Try again.")).build();
+        }
+    }
+
+    private static Response badRequest(String message) {
+        return Response.status(400).entity(Map.of("message", message)).build();
     }
 }

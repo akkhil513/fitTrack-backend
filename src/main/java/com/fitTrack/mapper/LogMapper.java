@@ -1,5 +1,6 @@
 package com.fitTrack.mapper;
 
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.fitTrack.model.FitLog;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -22,6 +23,9 @@ public class LogMapper {
         item.put("notes",     AttributeValue.fromS(nullSafe(log.getNotes())));
         item.put("checklist",  AttributeValue.fromS(nullSafe(log.getChecklistJson())));
         item.put("foodEntries", AttributeValue.fromS(nullSafe(log.getFoodEntries())));
+        item.put("skipped",     AttributeValue.fromS(nullSafe(log.getSkipped())));
+        item.put("plannedDay",  AttributeValue.fromS(nullSafe(log.getPlannedDay())));
+        item.put("rest",        AttributeValue.fromS(nullSafe(log.getRest())));
         return item;
     }
 
@@ -42,7 +46,14 @@ public class LogMapper {
         log.setSleep(item.get("sleep").s());
         log.setNotes(item.get("notes").s());
         log.setChecklistJson(item.getOrDefault("checklist", AttributeValue.fromS(" ")).s());
+        // The app reads `checklist` as a JSON string.
+        if (log.getChecklistJson() != null && !log.getChecklistJson().isBlank()) {
+            log.setChecklist(TextNode.valueOf(log.getChecklistJson()));
+        }
         log.setFoodEntries(item.getOrDefault("foodEntries", AttributeValue.fromS(" ")).s());
+        log.setSkipped(item.getOrDefault("skipped", AttributeValue.fromS(" ")).s());
+        log.setPlannedDay(item.getOrDefault("plannedDay", AttributeValue.fromS(" ")).s());
+        log.setRest(item.getOrDefault("rest", AttributeValue.fromS(" ")).s());
         return log;
     }
 }

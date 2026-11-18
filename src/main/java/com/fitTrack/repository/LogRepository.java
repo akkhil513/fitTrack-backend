@@ -70,6 +70,20 @@ public class LogRepository {
         return out;
     }
 
+    /** Sets only the skipped flag on an existing log; every other field is left alone. */
+    public void setSkipped(String userId, String date, boolean skipped) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of(
+                        "userId", AttributeValue.fromS(userId),
+                        "date",   AttributeValue.fromS(date)
+                ))
+                .updateExpression("SET skipped = :sk")
+                .conditionExpression("attribute_exists(userId)")
+                .expressionAttributeValues(Map.of(":sk", AttributeValue.fromS(skipped ? "true" : "false")))
+                .build());
+    }
+
     public void updateLog(String userId, String date, Map<String, AttributeValue> values) {
         dynamoDB.updateItem(UpdateItemRequest.builder()
                 .tableName(TABLE)
@@ -77,8 +91,8 @@ public class LogRepository {
                         "userId", AttributeValue.fromS(userId),
                         "date",   AttributeValue.fromS(date)
                 ))
-                .updateExpression("SET #s = :s, exercises = :e, protein = :p, calories = :c, water = :w, sleep = :sl, notes = :n, checklist = :cl, foodEntries = :fe")
-                .expressionAttributeNames(Map.of("#s", "session"))
+                .updateExpression("SET #s = :s, exercises = :e, protein = :p, calories = :c, water = :w, sleep = :sl, notes = :n, checklist = :cl, foodEntries = :fe, plannedDay = :pd, #r = :rs")
+                .expressionAttributeNames(Map.of("#s", "session", "#r", "rest"))
                 .expressionAttributeValues(values)
                 .build());
     }

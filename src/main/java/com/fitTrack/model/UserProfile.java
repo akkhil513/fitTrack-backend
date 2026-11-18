@@ -15,6 +15,8 @@ public class UserProfile {
     private String measurements;
     private String measurementHistory;
     private String mealTemplates;
+    private String supplementReminders;
+    private String goals;
     private String photoUrl;
     private String challengeDuration;
 }

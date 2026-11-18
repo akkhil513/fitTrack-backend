@@ -15,6 +15,10 @@ Parameters:
   CognitoClientId:
     Type: String
     Default: 5mqksvmvu33fqsk9e570f22jcf
+  AppOrigin:
+    Type: String
+    Description: Origin of the web app, allowed to upload and view progress photos (CORS)
+    Default: http://fittrack-flutter-app.s3-website-us-east-1.amazonaws.com
 
 Resources:
   LambdaExecutionRole:
@@ -77,6 +81,79 @@ Resources:
                   - s3:GetObject
                   - s3:DeleteObject
                 Resource: arn:aws:s3:::fittrack-user-uploads/*
+        - PolicyName: ProgressPhotosAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub ${ProgressPhotosBucket.Arn}/progress/*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt ProgressPhotosBucket.Arn
+                Condition:
+                  StringLike:
+                    s3:prefix: 'progress/*'
+
+  # ── PRIVATE PROGRESS PHOTOS ─────────────────────────────────
+  # Never public. Objects are reached only through short-lived presigned URLs minted by the API.
+  ProgressPhotosBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !Ref AppOrigin
+            AllowedMethods:
+              - GET
+              - PUT
+            AllowedHeaders:
+              - Content-Type
+              - Content-Length
+            MaxAge: 3000
+
+  ProgressPhotosBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProgressPhotosBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt ProgressPhotosBucket.Arn
+              - !Sub ${ProgressPhotosBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
 
   # ── MAIN LAMBDA ─────────────────────────────────────────────
   FitTrackLambda:
@@ -96,6 +173,7 @@ Resources:
           COGNITO_USER_POOL_ID: us-east-1_FiMxzIAMO
           ENVIRONMENT: !Ref Environment
           APP_ZONE: America/New_York
+          FITTRACK_PHOTOS_BUCKET: !Ref ProgressPhotosBucket
 
   # ── EVENTBRIDGE RULE ────────────────────────────────────────
   # Fires daily at 2 AM Eastern (7 AM UTC). The service decides per user whether a new week is due:
@@ -317,6 +395,78 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       RouteKey: 'PUT /meal-templates/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  SupplementsPutRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'PUT /supplements/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  SupplementsSuggestTimeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /supplements/{userId}/suggest-time'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  GoalsPutRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'PUT /goals/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PhotosUploadUrlRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /photos/{userId}/upload-url'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PhotosListRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'GET /photos/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PhotosDeleteRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'DELETE /photos/{userId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  PlanSwapRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /plans/{userId}/swap'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiJwtAuthorizer
+      Target: !Sub integrations/${LambdaIntegration}
+
+  LogSkipRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: 'POST /logs/{userId}/{date}/skip'
       AuthorizationType: JWT
       AuthorizerId: !Ref ApiJwtAuthorizer
       Target: !Sub integrations/${LambdaIntegration}

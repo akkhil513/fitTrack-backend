@@ -131,6 +131,7 @@ public class WeeklyPlanService {
         newPlan.put("status", AttributeValue.fromS("READY"));
         newPlan.put("weekNumber", AttributeValue.fromN(String.valueOf(targetWeek)));
         newPlan.put("profile", AttributeValue.fromS(profile));
+        newPlan.put("weekSummary", AttributeValue.fromS(WeekReport.toJson(storedWeek, digest.sessions(), weights)));
         newPlan.put("strategy", AttributeValue.fromS(planNode.path("strategy").asText("")));
         newPlan.put("training", AttributeValue.fromS(training.toString()));
         newPlan.put("nutrition", AttributeValue.fromS(planNode.path("nutrition").asText("")));
@@ -145,18 +146,44 @@ public class WeeklyPlanService {
     /** True when the plan's last non-rest day this week has a log with at least one completed set. */
     private boolean lastTrainingDayDone(String userId, JsonNode training, LocalDate weekMonday, LocalDate today) {
         if (training == null || !training.isObject()) return false;
-        for (int i = 6; i >= 0; i--) {
+        List<Map<String, AttributeValue>> logs =
+                logRepository.getLogsBetween(userId, weekMonday.toString(), weekMonday.plusDays(6).toString());
+        return allSessionsCleared(training, weekMonday, logs);
+    }
+
+    /**
+     * True when every planned training session of the week has a cleared log. A log covers session D when its
+     * plannedDay is D, or when it has no plannedDay and was logged on the date that falls on D. Rest logs never
+     * cover a session. Sessions pushed out of the week are dropped by the calendar roll-over, not here.
+     */
+    static boolean allSessionsCleared(JsonNode training, LocalDate weekMonday, List<Map<String, AttributeValue>> logs) {
+        boolean anySession = false;
+        for (int i = 0; i < 7; i++) {
             DayOfWeek dow = DayOfWeek.of(i + 1);
             String name = dow.name().charAt(0) + dow.name().substring(1).toLowerCase(Locale.ROOT);
             JsonNode day = training.path(name);
             boolean trains = !day.path("isRestDay").asBoolean(false) && day.path("exercises").size() > 0;
             if (!trains) continue;
-            LocalDate date = weekMonday.plusDays(i);
-            if (date.isAfter(today)) return false;
-            Map<String, AttributeValue> log = logRepository.getLog(userId, date.toString());
-            return log != null && !log.isEmpty() && WeekSummary.completedSets(getS(log, "exercises")) > 0;
+            anySession = true;
+            String dateOfDay = weekMonday.plusDays(i).toString();
+            boolean covered = false;
+            for (Map<String, AttributeValue> log : logs) {
+                if ("true".equals(getS(log, "rest")) || !dayCleared(log)) continue;
+                String planned = getS(log, "plannedDay").trim();
+                if (planned.isEmpty() ? dateOfDay.equals(getS(log, "date")) : planned.equals(name)) {
+                    covered = true;
+                    break;
+                }
+            }
+            if (!covered) return false;
         }
-        return false;
+        return anySession;
+    }
+
+    /** A training day is cleared when at least one set was completed or the user chose to skip it. */
+    static boolean dayCleared(Map<String, AttributeValue> log) {
+        if (log == null || log.isEmpty()) return false;
+        return "true".equals(getS(log, "skipped")) || WeekSummary.completedSets(getS(log, "exercises")) > 0;
     }
 
     /** Overwrites targetWeight for exercises we computed; the model's number never wins for those. */
