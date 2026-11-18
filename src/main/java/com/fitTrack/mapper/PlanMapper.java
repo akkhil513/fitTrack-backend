@@ -26,6 +26,7 @@ public class PlanMapper {
         map.put("dailyChecklist", AttributeValue.fromS(nullSafe(plan.getDailyChecklist())));
         map.put("weekNumber", AttributeValue.fromN(String.valueOf(plan.getWeekNumber())));
         map.put("profile",        AttributeValue.fromS(nullSafe(plan.getProfile())));
+        map.put("weekSummary",    AttributeValue.fromS(nullSafe(plan.getWeekSummary())));
         return map;
     }
 
@@ -44,6 +45,7 @@ public class PlanMapper {
         plan.setWeekNumber(Integer.parseInt(
                 item.getOrDefault("weekNumber", AttributeValue.fromN("1")).n()));
         plan.setProfile(item.getOrDefault("profile", AttributeValue.fromS(" ")).s());
+        plan.setWeekSummary(item.getOrDefault("weekSummary", AttributeValue.fromS(" ")).s());
         return plan;
     }
 }

@@ -18,4 +18,6 @@ public class FitPlan {
     private int weekNumber;
     /** Onboarding answers as sent to the model, kept so weekly regeneration knows the user's goal and limits. */
     private String profile;
+    /** JSON summary of the week that just finished (see WeekReport); blank for week 1. */
+    private String weekSummary;
 }

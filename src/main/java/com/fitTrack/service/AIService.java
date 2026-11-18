@@ -192,6 +192,47 @@ public class AIService {
         return text;
     }
 
+    /** Asks Gemini for one supplement time. Returns the raw model text; callers must validate it. */
+    public String suggestSupplementTime(String prompt) throws Exception {
+        return askShortAnswer(prompt);
+    }
+
+    /**
+     * One low-temperature Gemini call for a short structured answer. Returns the raw model text;
+     * callers must validate it. Throws on a non-200 status or an empty answer.
+     */
+    public String askShortAnswer(String prompt) throws Exception {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + getApiKey();
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+                "contents", new Object[]{
+                        Map.of("parts", new Object[]{Map.of("text", prompt)})
+                },
+                "generationConfig", Map.of(
+                        "temperature", 0.2,
+                        "maxOutputTokens", 1000
+                )
+        ));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(20))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Gemini API error: " + response.statusCode());
+        }
+
+        JsonNode text = objectMapper.readTree(response.body())
+                .path("candidates").path(0).path("content").path("parts").path(0).path("text");
+        if (!text.isTextual() || text.asText().isBlank()) {
+            throw new IllegalStateException("Empty model response");
+        }
+        return text.asText();
+    }
+
     public String generateWeeklyPlan(
             String userProfile,
             int weekNumber,

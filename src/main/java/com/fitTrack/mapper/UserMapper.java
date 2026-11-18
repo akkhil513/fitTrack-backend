@@ -22,6 +22,8 @@ public class UserMapper {
         user.setMeasurements(item.getOrDefault("measurements", AttributeValue.fromS(" ")).s());
         user.setMeasurementHistory(item.getOrDefault("measurementHistory", AttributeValue.fromS(" ")).s());
         user.setMealTemplates(item.getOrDefault("mealTemplates", AttributeValue.fromS(" ")).s());
+        user.setSupplementReminders(item.getOrDefault("supplementReminders", AttributeValue.fromS(" ")).s());
+        user.setGoals(item.getOrDefault("goals", AttributeValue.fromS(" ")).s());
         user.setPhotoUrl(item.getOrDefault("photoUrl", AttributeValue.fromS(" ")).s());
         user.setChallengeDuration(
                 item.getOrDefault("challengeDuration",
@@ -40,6 +42,8 @@ public class UserMapper {
         map.put("measurements",       AttributeValue.fromS(nullSafe(user.getMeasurements())));
         map.put("measurementHistory", AttributeValue.fromS(nullSafe(user.getMeasurementHistory())));
         map.put("mealTemplates",      AttributeValue.fromS(nullSafe(user.getMealTemplates())));
+        map.put("supplementReminders", AttributeValue.fromS(nullSafe(user.getSupplementReminders())));
+        map.put("goals",              AttributeValue.fromS(nullSafe(user.getGoals())));
         map.put("photoUrl",           AttributeValue.fromS(nullSafe(user.getPhotoUrl())));
         map.put("challengeDuration", AttributeValue.fromS(
                 nullSafe(user.getChallengeDuration() != null ?

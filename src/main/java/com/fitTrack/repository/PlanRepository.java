@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedExce
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.util.Map;
 
@@ -50,6 +51,17 @@ public class PlanRepository {
                 .tableName(TABLE)
                 .key(Map.of("userId", AttributeValue.fromS(userId)))
                 .build()).item();
+    }
+
+    /** Replaces only the training JSON of an existing plan. Fails if the plan does not exist. */
+    public void updateTraining(String userId, String trainingJson) {
+        dynamoDB.updateItem(UpdateItemRequest.builder()
+                .tableName(TABLE)
+                .key(Map.of("userId", AttributeValue.fromS(userId)))
+                .updateExpression("SET training = :t")
+                .conditionExpression("attribute_exists(userId)")
+                .expressionAttributeValues(Map.of(":t", AttributeValue.fromS(trainingJson)))
+                .build());
     }
 
     // Check if plan exists for userId
